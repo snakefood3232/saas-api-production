@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaaS Dashboard - Realtalk AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --gray: #64748b;
+            --light: #f1f5f9;
+            --white: #ffffff;
+            --sidebar-width: 280px;
+            --header-height: 70px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--dark);
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.5s;
+        }
+
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Connection Status */
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .connection-status.connected {
+            background: var(--success);
+            color: white;
+        }
+
+        .connection-status.disconnected {
+            background: var(--danger);
+            color: white;
+        }
+
+        .connection-status.connecting {
+            background: var(--warning);
+            color: white;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Layout */
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+            background: var(--light);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--white);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.3s;
+        }
+
+        .sidebar-header {
+            padding: 25px;
+            border-bottom: 1px solid #e2e8f0;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            color: var(--white);
+            text-decoration: none;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .nav-menu {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 25px;
+            color: var(--gray);
+            text-decoration: none;
+            transition: all 0.3s;
+            position: relative;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background: var(--light);
+            color: var(--primary);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, transparent 100%);
+            color: var(--primary);
+        }
+
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--primary);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            height: var(--header-height);
+            background: var(--white);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        /* Page Content */
+        .page-content {
+            padding: 30px;
+            flex: 1;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--white);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .stat-icon.blue {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+        }
+
+        .stat-icon.green {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .stat-icon.orange {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .stat-icon.purple {
+            background: rgba(139, 92, 246, 0.1);
+            color: var(--secondary);
+        }
+
+        .stat-change {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .stat-change.positive {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .stat-change.negative {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--gray);
+        }
+
+        /* Data refresh animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .data-refresh {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Error message */
+        .error-message {
+            background: var(--danger);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .success-message {
+            background: var(--success);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loader"></div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="connection-status connecting" id="connectionStatus">
+        <span class="status-dot"></span>
+        <span id="statusText">Connecting to API...</span>
+    </div>
+
+    <!-- Dashboard Container -->
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="#" class="logo">
+                    🚀 Realtalk AI
+                </a>
+            </div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active">
+                    📊 Dashboard
+                </a>
+                <a href="#" class="nav-item">
+                    👥 Users
+                </a>
+                <a href="#" class="nav-item">
+                    📦 Products
+                </a>
+                <a href="#" class="nav-item">
+                    📈 Analytics
+                </a>
+                <a href="#" class="nav-item">
+                    ⚙️ Settings
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h2>Dashboard Overview</h2>
+                <div>
+                    <span id="currentTime"></span>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div class="page-content">
+                <div class="page-header">
+                    <h1 class="page-title">Welcome to Realtalk AI</h1>
+                    <p>Real-time dashboard connected to your API</p>
+                </div>
+
+                <div id="messageContainer"></div>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon blue">👥</div>
+                            <div class="stat-change positive" id="usersChange">
+                                ↑ 0%
+                            </div>
+                        </div>
+                        <div class="stat-value" id="usersCount">-</div>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon green">💰</div>
+                            <div class="stat-change positive" id="revenueChange">
+                                ↑ 0%
+                            </div>
+                        </div>
+                        <div class="stat-value" id="revenueAmount">$-</div>
+                        <div class="stat-label">Revenue</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon orange">📦</div>
+                            <div class="stat-change negative" id="ordersChange">
+                                ↓ 0%
+                            </div>
+                        </div>
+                        <div class="stat-value" id="ordersCount">-</div>
+                        <div class="stat-label">Orders</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-icon purple">🚀</div>
+                            <div class="stat-change positive" id="projectsChange">
+                                ↑ 0%
+                            </div>
+                        </div>
+                        <div class="stat-value" id="projectsCount">-</div>
+                        <div class="stat-label">Active Projects</div>
+                    </div>
+                </div>
+
+                <!-- API Info -->
+                <div style="margin-top: 40px; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h3 style="margin-bottom: 15px;">API Endpoints Status</h3>
+                    <div style="display: grid; gap: 10px;">
+                        <div id="healthStatus">⏳ Checking health endpoint...</div>
+                        <div id="statsStatus">⏳ Checking stats endpoint...</div>
+                        <div id="apiUrl" style="font-family: monospace; color: #666; margin-top: 10px;"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:3001';
+        
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString();
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Connection status management
+        function updateConnectionStatus(status, message) {
+            const statusEl = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('statusText');
+            
+            statusEl.className = 'connection-status ' + status;
+            statusText.textContent = message;
+            
+            // Auto-hide success status after 3 seconds
+            if (status === 'connected') {
+                setTimeout(() => {
+                    statusEl.style.opacity = '0';
+                }, 3000);
+            } else {
+                statusEl.style.opacity = '1';
+            }
+        }
+
+        // Show message
+        function showMessage(message, type = 'success') {
+            const container = document.getElementById('messageContainer');
+            const messageEl = document.createElement('div');
+            messageEl.className = type + '-message';
+            messageEl.textContent = message;
+            container.appendChild(messageEl);
+            
+            setTimeout(() => {
+                messageEl.remove();
+            }, 5000);
+        }
+
+        // Check API health
+        async function checkAPIHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                document.getElementById('healthStatus').innerHTML = 
+                    `✅ Health: ${data.status} (${new Date(data.timestamp).toLocaleTimeString()})`;
+                document.getElementById('apiUrl').textContent = `API URL: ${API_BASE_URL}`;
+                
+                return true;
+            } catch (error) {
+                document.getElementById('healthStatus').innerHTML = 
+                    `❌ Health check failed: ${error.message}`;
+                return false;
+            }
+        }
+
+        // Fetch dashboard stats
+        async function fetchDashboardStats() {
+            try {
+                updateConnectionStatus('connecting', 'Fetching data...');
+                
+                const response = await fetch(`${API_BASE_URL}/api/dashboard/stats`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Update stats with animation
+                document.getElementById('usersCount').textContent = data.users?.toLocaleString() || '2,453';
+                document.getElementById('revenueAmount').textContent = 
+                    '$' + (data.revenue?.toLocaleString() || '48,275');
+                document.getElementById('ordersCount').textContent = data.orders?.toLocaleString() || '846';
+                document.getElementById('projectsCount').textContent = data.projects?.toLocaleString() || '142';
+                
+                // Update change indicators
+                if (data.userChange) {
+                    const userChangeEl = document.getElementById('usersChange');
+                    userChangeEl.textContent = (data.userChange > 0 ? '↑' : '↓') + ` ${Math.abs(data.userChange)}%`;
+                    userChangeEl.className = 'stat-change ' + (data.userChange > 0 ? 'positive' : 'negative');
+                }
+                
+                if (data.revenueChange) {
+                    const revenueChangeEl = document.getElementById('revenueChange');
+                    revenueChangeEl.textContent = (data.revenueChange > 0 ? '↑' : '↓') + ` ${Math.abs(data.revenueChange)}%`;
+                    revenueChangeEl.className = 'stat-change ' + (data.revenueChange > 0 ? 'positive' : 'negative');
+                }
+                
+                if (data.orderChange) {
+                    const orderChangeEl = document.getElementById('ordersChange');
+                    orderChangeEl.textContent = (data.orderChange > 0 ? '↑' : '↓') + ` ${Math.abs(data.orderChange)}%`;
+                    orderChangeEl.className = 'stat-change ' + (data.orderChange > 0 ? 'positive' : 'negative');
+                }
+                
+                if (data.projectChange) {
+                    const projectChangeEl = document.getElementById('projectsChange');
+                    projectChangeEl.textContent = (data.projectChange > 0 ? '↑' : '↓') + ` ${Math.abs(data.projectChange)}%`;
+                    projectChangeEl.className = 'stat-change ' + (data.projectChange > 0 ? 'positive' : 'negative');
+                }
+                
+                // Add refresh animation
+                document.querySelectorAll('.stat-card').forEach(card => {
+                    card.classList.add('data-refresh');
+                    setTimeout(() => card.classList.remove('data-refresh'), 500);
+                });
+                
+                updateConnectionStatus('connected', 'Connected to API');
+                document.getElementById('statsStatus').innerHTML = 
+                    `✅ Stats loaded successfully (${new Date().toLocaleTimeString()})`;
+                
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                updateConnectionStatus('disconnected', 'Failed to fetch data');
+                document.getElementById('statsStatus').innerHTML = 
+                    `❌ Stats endpoint error: ${error.message}`;
+                
+                // Show fallback data
+                document.getElementById('usersCount').textContent = '2,453';
+                document.getElementById('revenueAmount').textContent = '$48,275';
+                document.getElementById('ordersCount').textContent = '846';
+                document.getElementById('projectsCount').textContent = '142';
+            }
+        }
+
+        // Initialize dashboard
+        async function initializeDashboard() {
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loadingScreen').classList.add('hidden');
+            }, 1000);
+            
+            // Check API health
+            const isHealthy = await checkAPIHealth();
+            
+            if (isHealthy) {
+                showMessage('Successfully connected to Realtalk AI API', 'success');
+            } else {
+                showMessage('API connection failed - using fallback data', 'error');
+            }
+            
+            // Fetch initial stats
+            await fetchDashboardStats();
+            
+            // Refresh stats every 30 seconds
+            setInterval(fetchDashboardStats, 30000);
+        }
+
+        // Start the dashboard
+        window.addEventListener('load', initializeDashboard);
+        
+        // Handle navigation clicks
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
